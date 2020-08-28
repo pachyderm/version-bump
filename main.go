@@ -26,16 +26,17 @@ type auth struct {
 }
 
 type config struct {
-	Timeout        time.Duration `long:"timeout" description:"How long to wait for Github." default:"30s"`
-	GithubOwner    string        `long:"owner" description:"The owner of the repository to edit."`
-	GithubRepo     string        `long:"repo" description:"The repository to edit."`
-	GithubBranch   string        `long:"branch" description:"The branch to edit."`
-	File           string        `long:"file" description:"The file to edit."`
-	Locations      []string      `long:"location" description:"The location in the YAML file to replace.  Repeatable."`
-	Replacement    string        `long:"replacement" description:"The content to replace the text at the provided locations with."`
-	DryRun         bool          `long:"dry-run" description:"Print the diff of the edit we would like to commit, rather than committing it."`
-	AuthorUsername string        `long:"author-username" description:"The Github username of the author."`
-	CommitMessage  string        `long:"message" description:"The desired text of the commit message."`
+	Timeout       time.Duration `long:"timeout" description:"How long to wait for Github." default:"30s"`
+	GithubOwner   string        `long:"owner" description:"The owner of the repository to edit."`
+	GithubRepo    string        `long:"repo" description:"The repository to edit."`
+	GithubBranch  string        `long:"branch" description:"The branch to edit."`
+	File          string        `long:"file" description:"The file to edit."`
+	Locations     []string      `long:"location" description:"The location in the YAML file to replace.  Repeatable."`
+	Replacement   string        `long:"replacement" description:"The content to replace the text at the provided locations with."`
+	DryRun        bool          `long:"dry-run" description:"Print the diff of the edit we would like to commit, rather than committing it."`
+	AuthorName    string        `long:"author-name" description:"The full name of the user that will generate the commit."`
+	AuthorEmail   string        `long:"author-email" description:"The email address of the user that will generate the commit."`
+	CommitMessage string        `long:"message" description:"The desired text of the commit message."`
 }
 
 type fileInTree struct {
@@ -218,12 +219,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	email := cfg.AuthorUsername + "@users.noreply.github.com"
-	name := cfg.AuthorUsername
 	author := &github.CommitAuthor{
-		Login: &cfg.AuthorUsername,
-		Email: &email,
-		Name:  &name,
+		Email: &cfg.AuthorEmail,
+		Name:  &cfg.AuthorName,
 	}
 	sha, err := commit(ctx, client, orig.Tree.GetSHA(), orig.CommitSHA, cfg.GithubOwner, cfg.GithubRepo, cfg.GithubBranch, cfg.File, new, cfg.CommitMessage, author)
 	if err != nil {
