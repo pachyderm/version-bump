@@ -6,19 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v32/github"
 	"github.com/jessevdk/go-flags"
 	"golang.org/x/oauth2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+type auth struct {
+	AccessToken    string `long:"token" env:"GITHUB_TOKEN" description:"If authenticating as a user, the Personal Access Token to use to access Github."`
+	AppID          int64  `long:"app-id" env:"GITHUB_APP_ID" description:"If authenticating as a Github app, the App ID provided by Github."`
+	InstallationID int64  `long:"installation-id" env:"GITHUB_INSTALLATION_ID" description:"If authenticating as a Github app, the Installation ID provided by Github."`
+	PrivateKey     string `long:"private-key" env:"GITHUB_PRIVATE_KEY" description:"If authenticating as a Github app, the full private key provided by Github."`
+}
+
 type config struct {
 	Timeout        time.Duration `long:"timeout" description:"How long to wait for Github." default:"30s"`
-	AccessToken    string        `long:"token" description:"Token to use to access Github."`
 	GithubOwner    string        `long:"owner" description:"The owner of the repository to edit."`
 	GithubRepo     string        `long:"repo" description:"The repository to edit."`
 	GithubBranch   string        `long:"branch" description:"The branch to edit."`
@@ -156,8 +164,12 @@ func commit(ctx context.Context, client *github.Client, baseTreeSHA, baseCommit,
 
 func main() {
 	var cfg config
+	var auth auth
 
 	fp := flags.NewParser(nil, flags.HelpFlag|flags.PassDoubleDash)
+	if _, err := fp.AddGroup("Authentication", "", &auth); err != nil {
+		panic(err)
+	}
 	if _, err := fp.AddGroup("Configuration", "", &cfg); err != nil {
 		panic(err)
 	}
@@ -173,9 +185,21 @@ func main() {
 	ctx, c := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer c()
 
-	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: cfg.AccessToken})
-	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
+	var client *github.Client
+	if auth.AccessToken != "" {
+		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: auth.AccessToken})
+		tc := oauth2.NewClient(ctx, ts)
+		client = github.NewClient(tc)
+	} else if auth.AppID != 0 && auth.InstallationID != 0 && len(auth.PrivateKey) > 0 {
+		tr := http.DefaultTransport
+		itr, err := ghinstallation.New(tr, auth.AppID, auth.InstallationID, []byte(auth.PrivateKey))
+		if err != nil {
+			log.Fatalf("new github apps key: %v", err)
+		}
+		client = github.NewClient(&http.Client{Transport: itr})
+	} else {
+		log.Fatal("no authentication credentials provided")
+	}
 
 	orig, err := fetch(ctx, client, cfg.GithubOwner, cfg.GithubRepo, cfg.GithubBranch, cfg.File)
 	if err != nil {
