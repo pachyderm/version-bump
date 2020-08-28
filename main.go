@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v32/github"
 	"github.com/jessevdk/go-flags"
 	"golang.org/x/oauth2"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -124,7 +124,7 @@ func commit(ctx context.Context, client *github.Client, baseTreeSHA, baseCommit,
 	}
 	mode := "100644"
 	entryType := "blob"
-	tree, _, err := client.Git.CreateTree(ctx, owner, repo, baseTreeSHA, []github.TreeEntry{{
+	tree, _, err := client.Git.CreateTree(ctx, owner, repo, baseTreeSHA, []*github.TreeEntry{{
 		Path: &filename,
 		Mode: &mode,
 		Type: &entryType,
@@ -140,7 +140,7 @@ func commit(ctx context.Context, client *github.Client, baseTreeSHA, baseCommit,
 		Author:    author,
 		Committer: author,
 		Message:   &commitMsg,
-		Parents:   []github.Commit{{SHA: &baseCommit}},
+		Parents:   []*github.Commit{{SHA: &baseCommit}},
 		Tree:      tree,
 	})
 	if err != nil {
