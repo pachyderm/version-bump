@@ -186,17 +186,19 @@ func main() {
 	defer c()
 
 	var client *github.Client
-	if auth.AccessToken != "" {
-		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: auth.AccessToken})
-		tc := oauth2.NewClient(ctx, ts)
-		client = github.NewClient(tc)
-	} else if auth.AppID != 0 && auth.InstallationID != 0 && len(auth.PrivateKey) > 0 {
+	if auth.AppID != 0 && auth.InstallationID != 0 && len(auth.PrivateKey) > 0 {
+		log.Println("Authenticating to Github as an app installation")
 		tr := http.DefaultTransport
 		itr, err := ghinstallation.New(tr, auth.AppID, auth.InstallationID, []byte(auth.PrivateKey))
 		if err != nil {
 			log.Fatalf("new github apps key: %v", err)
 		}
 		client = github.NewClient(&http.Client{Transport: itr})
+	} else if auth.AccessToken != "" {
+		log.Println("Authenticating to Github with a token")
+		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: auth.AccessToken})
+		tc := oauth2.NewClient(ctx, ts)
+		client = github.NewClient(tc)
 	} else {
 		log.Fatal("no authentication credentials provided")
 	}
